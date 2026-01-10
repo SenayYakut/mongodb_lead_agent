@@ -26,8 +26,57 @@ class SummarizationAgent(BaseAgent):
         )
         self.client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
     
-    def summarize(self, text, meeting_id):
-        """Create summary of conversation"""
+    def _get_summary_context(self, user_id="default"):
+        """Get summary context from user preferences"""
+        try:
+            user_prefs = self.db.user_preferences.find_one({"user_id": user_id})
+            
+            if not user_prefs:
+                # Default context if no preferences found
+                return {
+                    "use_case": "networking",
+                    "focus_areas": ["key discussion points", "mutual interests", "commitments"],
+                    "extracted_preferences": {}
+                }
+            
+            # Build context from user preferences
+            context = {
+                "use_case": user_prefs.get("use_case", "networking"),
+                "focus_areas": []
+            }
+            
+            # Add use-case specific focus areas
+            use_case = user_prefs.get("use_case", "networking")
+            if use_case == "sales":
+                context["focus_areas"] = ["budget discussions", "pain points", "decision timeline", "buying signals"]
+            elif use_case == "job_hunting":
+                context["focus_areas"] = ["hiring needs", "role details", "team structure", "interview process"]
+            elif use_case == "lead_generation":
+                context["focus_areas"] = ["company needs", "decision makers", "buying signals", "company size"]
+            else:
+                context["focus_areas"] = ["key discussion points", "mutual interests", "commitments"]
+            
+            # Add extracted preferences from comments
+            extracted = user_prefs.get("extracted_preferences", {})
+            context["extracted_preferences"] = extracted
+            
+            # Add custom criteria to focus on
+            if extracted.get("custom_criteria"):
+                context["focus_areas"].extend([f"mentions of: {crit}" for crit in extracted["custom_criteria"][:3]])
+            
+            return context
+        
+        except Exception as e:
+            print(f"Error getting user preferences: {e}")
+            # Return default context
+            return {
+                "use_case": "networking",
+                "focus_areas": ["key discussion points", "mutual interests", "commitments"],
+                "extracted_preferences": {}
+            }
+    
+    def summarize(self, text, meeting_id, user_id="default"):
+        """Create summary of conversation with context from user preferences"""
         self.update_status("busy")
         
         try:
@@ -35,8 +84,37 @@ class SummarizationAgent(BaseAgent):
                 # Fallback: simple summary
                 return self._simple_summarize(text, meeting_id)
             
-            prompt = f"""Summarize this networking conversation in 2-3 sentences. 
-Highlight key discussion points, mutual interests, and any commitments made.
+            # Get person information for context
+            meeting = self.db.meetings.find_one({"meeting_id": meeting_id})
+            person = None
+            if meeting:
+                person = self.db.people.find_one({"person_id": meeting.get("person_id")})
+            
+            # Get summary context from user preferences
+            context = self._get_summary_context(user_id)
+            
+            # Build context-aware prompt
+            focus_areas_str = ", ".join(context["focus_areas"])
+            use_case_note = f"User's goal: {context['use_case']}. " if context.get("use_case") else ""
+            
+            # Add extracted preferences if available
+            extracted_note = ""
+            if context.get("extracted_preferences", {}).get("value_indicators"):
+                indicators = context["extracted_preferences"]["value_indicators"][:2]
+                extracted_note = f"Pay special attention to: {', '.join(indicators)}. "
+            
+            # Include person name and company in summary if available
+            person_info = ""
+            if person:
+                name = person.get("name", "").strip()
+                company = person.get("company", "").strip()
+                if name and name != "Unknown":
+                    person_info = f"Person: {name}. "
+                if company and company != "Unknown":
+                    person_info += f"Company: {company}. "
+            
+            prompt = f"""Summarize this networking conversation in 2-3 sentences. {person_info}
+{use_case_note}{extracted_note}Focus on: {focus_areas_str}.
 
 Conversation: {text}"""
 

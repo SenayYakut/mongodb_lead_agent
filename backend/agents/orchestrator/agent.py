@@ -33,14 +33,14 @@ class OrchestratorAgent(BaseAgent):
         self.summarization = SummarizationAgent()
         self.categorization = CategorizationAgent()
     
-    def process_meeting(self, meeting_text, location=None, audio_file=None, photo_files=None):
+    def process_meeting(self, meeting_text, location=None, audio_file=None, photo_files=None, user_id="default"):
         """Process a new meeting through the agent workflow"""
         self.update_status("busy")
         
         try:
             # Step 1: Data Collection
             print("Step 1: Data Collection Agent")
-            result = self.data_collection.process(meeting_text, location, audio_file, photo_files)
+            result = self.data_collection.process(meeting_text, location, audio_file, photo_files, user_id)
             person_id = result["person_id"]
             meeting_id = result["meeting_id"]
             
@@ -50,7 +50,7 @@ class OrchestratorAgent(BaseAgent):
             
             # Step 3: Summarization
             print("Step 3: Summarization Agent")
-            self.summarization.summarize(meeting_text, meeting_id)
+            self.summarization.summarize(meeting_text, meeting_id, user_id=user_id)
             
             # Step 4: Categorization
             print("Step 4: Categorization Agent")

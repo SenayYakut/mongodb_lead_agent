@@ -1,7 +1,7 @@
 """FastAPI application entry point"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import meetings, groups
+from api.routes import meetings, groups, admin
 import logging
 
 # Configure logging
@@ -25,6 +25,11 @@ app.add_middleware(
 # Include routers
 app.include_router(meetings.router, prefix="/api", tags=["meetings"])
 app.include_router(groups.router, prefix="/api", tags=["groups"])
+app.include_router(admin.router, prefix="/api", tags=["admin"])
+
+# Import onboarding router
+from api.routes import onboarding
+app.include_router(onboarding.router, prefix="/api", tags=["onboarding"])
 
 @app.get("/")
 def root():

@@ -26,7 +26,12 @@ const PersonCard = ({ person }) => {
       
       {person.meeting_date && (
         <div style={styles.date}>
-          {new Date(person.meeting_date).toLocaleDateString()}
+          <strong>Meeting Date:</strong> {new Date(person.meeting_date).toLocaleDateString()}
+          {person.meeting_timestamp && (
+            <span style={styles.timestamp}>
+              {' '}at {new Date(person.meeting_timestamp).toLocaleTimeString()}
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -73,6 +78,10 @@ const styles = {
     marginTop: '10px',
     fontSize: '12px',
     color: '#666',
+  },
+  timestamp: {
+    fontSize: '11px',
+    color: '#999',
   },
 };
 

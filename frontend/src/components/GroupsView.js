@@ -5,7 +5,7 @@ import PersonCard from './PersonCard';
 /**
  * Component for displaying meetings grouped by priority (P0, P1, P2)
  */
-const GroupsView = () => {
+const GroupsView = ({ userId = 'default' }) => {
   const [groups, setGroups] = useState({ P0: [], P1: [], P2: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -14,7 +14,7 @@ const GroupsView = () => {
     setLoading(true);
     setError('');
     try {
-      const data = await getGroups();
+      const data = await getGroups(userId);
       setGroups(data);
     } catch (err) {
       setError('Error loading groups. Please try again.');
@@ -26,7 +26,7 @@ const GroupsView = () => {
 
   useEffect(() => {
     fetchGroups();
-  }, []);
+  }, [userId]);
 
   if (loading) {
     return (

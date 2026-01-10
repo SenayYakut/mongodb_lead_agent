@@ -2,8 +2,10 @@
 from agents.base_agent import BaseAgent
 from services.agent_registry import register_agent
 from services.transcription import transcribe_audio
+from services.ocr import extract_text_from_image
 from datetime import datetime
 import uuid
+import logging
 
 class DataCollectionAgent(BaseAgent):
     """Processes meeting data and creates person/meeting records"""
@@ -25,9 +27,10 @@ class DataCollectionAgent(BaseAgent):
             self.capabilities
         )
     
-    def process(self, meeting_text, location=None, audio_file=None, photo_files=None):
+    def process(self, meeting_text, location=None, audio_file=None, photo_files=None, user_id="default"):
         """Process meeting input and create records"""
         self.update_status("busy")
+        logger = logging.getLogger(__name__)
         
         try:
             # Create person ID
@@ -38,8 +41,6 @@ class DataCollectionAgent(BaseAgent):
             audio_data = None
             transcribed_text = None
             if audio_file:
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.info(f"[DATA_COLLECTION] Processing audio file: {audio_file.filename}")
                 
                 transcribed_text = transcribe_audio(audio_file)
@@ -62,16 +63,38 @@ class DataCollectionAgent(BaseAgent):
                 else:
                     logger.warning("[DATA_COLLECTION] Transcription failed or skipped")
             
-            # Process photo files if provided (store references for now)
+            # Process photo files if provided - extract text using OCR
             photo_data = []
+            photo_texts = []
             if photo_files:
+                logger.info(f"[DATA_COLLECTION] Processing {len(photo_files)} photo(s)")
                 for photo in photo_files:
-                    photo_data.append({
+                    logger.info(f"[DATA_COLLECTION] Extracting text from: {photo.filename}")
+                    extracted_text = extract_text_from_image(photo)
+                    
+                    photo_info = {
                         "filename": photo.filename,
                         "content_type": photo.content_type,
-                        "size": photo.size if hasattr(photo, 'size') else None
-                    })
-                    # In production, extract text from images using OCR here
+                        "size": photo.size if hasattr(photo, 'size') else None,
+                        "text_extracted": extracted_text is not None,
+                        "extracted_text": extracted_text,  # Store the actual OCR text
+                        "extracted_at": datetime.now().isoformat() if extracted_text else None
+                    }
+                    photo_data.append(photo_info)
+                    
+                    if extracted_text:
+                        photo_texts.append(f"[Text from {photo.filename}]\n{extracted_text}")
+                        logger.info(f"[DATA_COLLECTION] OCR successful for {photo.filename}: {len(extracted_text)} characters")
+                    else:
+                        logger.warning(f"[DATA_COLLECTION] OCR failed for {photo.filename}")
+                
+                # Combine extracted text from all photos with meeting text
+                if photo_texts:
+                    photos_text = "\n\n".join(photo_texts)
+                    if meeting_text:
+                        meeting_text = f"{meeting_text}\n\n{photos_text}"
+                    else:
+                        meeting_text = photos_text
             
             # Create person document
             person = {
@@ -90,6 +113,7 @@ class DataCollectionAgent(BaseAgent):
             meeting = {
                 "meeting_id": meeting_id,
                 "person_id": person_id,
+                "user_id": user_id,  # Store user_id for preference lookup
                 "date": datetime.now(),
                 "location": location or "Unknown",
                 "raw_data": {
