@@ -15,7 +15,7 @@ OPENAI_API_KEY=your_openai_api_key
 
 3. Setup database:
 ```bash
-python scripts/setup_database.py
+python3 scripts/setup_database.py
 ```
 
 4. Run server:

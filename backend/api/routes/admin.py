@@ -8,7 +8,10 @@ router = APIRouter()
 async def clear_all_data():
     """Clear all data from the database (people, meetings, tasks, contexts, etc.)"""
     try:
-        db = get_database()
+        try:
+            db = get_database()
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
         
         # Clear all collections
         result = {
@@ -33,7 +36,10 @@ async def clear_all_data():
 async def reset_onboarding(user_id: str):
     """Reset onboarding for a user (delete their preferences)"""
     try:
-        db = get_database()
+        try:
+            db = get_database()
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
         result = db.user_preferences.delete_one({"user_id": user_id})
         
         return {

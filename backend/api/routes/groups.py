@@ -21,7 +21,12 @@ def convert_objectid(obj):
 @router.get("/groups")
 async def get_groups(user_id: str = Query("default")):
     """Get all meetings grouped by priority (P0, P1, P2) for a specific user"""
-    db = get_database()
+    try:
+        db = get_database()
+    except RuntimeError as e:
+        # MongoDB not configured/reachable
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail=str(e))
     
     # Aggregate meetings grouped by priority_group
     pipeline = [

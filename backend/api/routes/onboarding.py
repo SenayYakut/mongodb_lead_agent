@@ -26,7 +26,10 @@ async def submit_onboarding(request: OnboardingRequest):
     """Submit onboarding form and save user preferences"""
     user_id = "default"  # Can be extended to support multiple users
     try:
-        db = get_database()
+        try:
+            db = get_database()
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
         
         # Analyze comments if provided
         extracted_preferences = {}
@@ -91,7 +94,10 @@ def convert_objectid(obj):
 async def get_onboarding_status(user_id: str):
     """Check if user has completed onboarding"""
     try:
-        db = get_database()
+        try:
+            db = get_database()
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
         user_prefs = db.user_preferences.find_one({"user_id": user_id})
         
         # Convert ObjectId to string for JSON serialization

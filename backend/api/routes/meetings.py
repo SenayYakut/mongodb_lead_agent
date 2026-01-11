@@ -3,9 +3,16 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from typing import Optional, List
 from agents.orchestrator.agent import OrchestratorAgent
 from services.ocr import extract_text_from_image
+from functools import lru_cache
 
 router = APIRouter()
-orchestrator = OrchestratorAgent()
+
+
+@lru_cache(maxsize=1)
+def get_orchestrator() -> OrchestratorAgent:
+    # Lazily initialize so the API can start even if MongoDB isn't available.
+    # If MongoDB is unavailable, this will raise at request time with a clear error.
+    return OrchestratorAgent()
 
 @router.post("/meetings")
 async def create_meeting(
@@ -39,6 +46,11 @@ async def create_meeting(
         if not meeting_text and not audio and not photos:
             raise HTTPException(status_code=400, detail="Please provide text, audio, or photos")
         
+        try:
+            orchestrator = get_orchestrator()
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+
         result = orchestrator.process_meeting(
             meeting_text=meeting_text,
             location=location,
@@ -63,7 +75,10 @@ async def create_meeting(
                 return [convert_objectid(item) for item in obj]
             return obj
         
-        db = get_database()
+        try:
+            db = get_database()
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
         meeting = db.meetings.find_one({"meeting_id": result["meeting_id"]})
         person = db.people.find_one({"person_id": result["person_id"]})
         
