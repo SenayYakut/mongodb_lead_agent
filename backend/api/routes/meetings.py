@@ -2,10 +2,15 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from typing import Optional, List
 from agents.orchestrator.agent import OrchestratorAgent
-from services.ocr import extract_text_from_image
+from functools import lru_cache
+from pymongo.errors import PyMongoError
 
 router = APIRouter()
-orchestrator = OrchestratorAgent()
+
+@lru_cache(maxsize=1)
+def get_orchestrator() -> OrchestratorAgent:
+    # Lazily create orchestrator so importing the app doesn't require a running MongoDB.
+    return OrchestratorAgent()
 
 @router.post("/meetings")
 async def create_meeting(
@@ -39,7 +44,7 @@ async def create_meeting(
         if not meeting_text and not audio and not photos:
             raise HTTPException(status_code=400, detail="Please provide text, audio, or photos")
         
-        result = orchestrator.process_meeting(
+        result = get_orchestrator().process_meeting(
             meeting_text=meeting_text,
             location=location,
             audio_file=audio,
@@ -103,6 +108,14 @@ async def create_meeting(
             } if person else None,
             "meeting_date": meeting.get("date").isoformat() if meeting and meeting.get("date") else None
         }
+    except PyMongoError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "MongoDB is not reachable. Start MongoDB (or set MONGODB_URI) and retry. "
+                f"Details: {str(e)}"
+            ),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
