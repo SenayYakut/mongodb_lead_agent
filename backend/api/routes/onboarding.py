@@ -6,6 +6,7 @@ from database.connection import get_database
 from services.preference_analysis import analyze_comments
 from datetime import datetime
 from bson import ObjectId
+from pymongo.errors import PyMongoError
 
 router = APIRouter()
 
@@ -72,6 +73,14 @@ async def submit_onboarding(request: OnboardingRequest):
             "user_id": user_id
         }
     
+    except PyMongoError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "MongoDB is not reachable. Start MongoDB (or set MONGODB_URI) and retry. "
+                f"Details: {str(e)}"
+            ),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -103,5 +112,13 @@ async def get_onboarding_status(user_id: str):
             "completed": user_prefs is not None,
             "preferences": preferences
         }
+    except PyMongoError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "MongoDB is not reachable. Start MongoDB (or set MONGODB_URI) and retry. "
+                f"Details: {str(e)}"
+            ),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

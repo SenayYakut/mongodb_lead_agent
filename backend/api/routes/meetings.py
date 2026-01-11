@@ -108,6 +108,9 @@ async def create_meeting(
             } if person else None,
             "meeting_date": meeting.get("date").isoformat() if meeting and meeting.get("date") else None
         }
+    except HTTPException as e:
+        # Preserve intentional HTTP errors (e.g. 400 for missing input).
+        raise e
     except PyMongoError as e:
         raise HTTPException(
             status_code=503,
