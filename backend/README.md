@@ -12,6 +12,10 @@ pip install -r requirements.txt
 MONGODB_URI=your_mongodb_connection_string
 OPENAI_API_KEY=your_openai_api_key
 ```
+Tip: you can start from the included template:
+```bash
+cp .env.example .env
+```
 
 3. Setup database:
 ```bash

@@ -1,6 +1,7 @@
 """Admin API routes for database management"""
 from fastapi import APIRouter, HTTPException
 from database.connection import get_database
+from pymongo.errors import PyMongoError
 
 router = APIRouter()
 
@@ -26,6 +27,14 @@ async def clear_all_data():
             "message": "All data cleared successfully",
             "deleted_counts": result
         }
+    except PyMongoError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "MongoDB is not reachable. Start MongoDB (or set MONGODB_URI) and retry. "
+                f"Details: {str(e)}"
+            ),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -41,5 +50,13 @@ async def reset_onboarding(user_id: str):
             "message": "Onboarding reset successfully",
             "deleted_count": result.deleted_count
         }
+    except PyMongoError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "MongoDB is not reachable. Start MongoDB (or set MONGODB_URI) and retry. "
+                f"Details: {str(e)}"
+            ),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
