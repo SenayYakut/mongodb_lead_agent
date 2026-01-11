@@ -20,7 +20,7 @@ cd backend
 
 2. Create virtual environment:
 ```bash
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 ```
 
@@ -37,7 +37,7 @@ OPENAI_API_KEY=your_openai_api_key
 
 5. Setup database:
 ```bash
-python scripts/setup_database.py
+python3 scripts/setup_database.py
 ```
 
 6. Run server:
