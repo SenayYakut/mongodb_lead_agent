@@ -3,6 +3,7 @@ import MeetingInput from './components/MeetingInput';
 import GroupsView from './components/GroupsView';
 import ClearDataButton from './components/ClearDataButton';
 import OnboardingForm from './components/OnboardingForm';
+import OfflineIndicator from './components/OfflineIndicator';
 import { checkOnboarding, resetOnboarding } from './services/api';
 
 /**
@@ -100,13 +101,16 @@ function App() {
               </p>
             )}
           </div>
-          <button
-            onClick={handleResetOnboarding}
-            style={styles.resetButton}
-            title="Reset onboarding to see the form again"
-          >
-            Reset Onboarding
-          </button>
+          <div style={styles.headerActions}>
+            <OfflineIndicator />
+            <button
+              onClick={handleResetOnboarding}
+              style={styles.resetButton}
+              title="Reset onboarding to see the form again"
+            >
+              Reset Onboarding
+            </button>
+          </div>
         </div>
       </header>
 
@@ -147,6 +151,12 @@ const styles = {
   headerText: {
     textAlign: 'center',
     flex: 1,
+  },
+  headerActions: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: '10px',
   },
   resetButton: {
     padding: '8px 16px',

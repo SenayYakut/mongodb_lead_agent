@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { submitMeeting, extractOCRText } from '../services/api';
+import { isOfflineStorageSupported, storeMeeting } from '../services/offlineStorage';
 
 /**
  * Component for submitting new meetings with voice recording and photo capture
@@ -21,6 +22,13 @@ const MeetingInput = ({ onMeetingSubmitted }) => {
   // Photo state
   const [photos, setPhotos] = useState([]); // { file, preview, ocrText, ocrLoading, ocrError }
   const fileInputRef = useRef(null);
+
+  const isCurrentlyOnline = () => {
+    if (typeof navigator === 'undefined') {
+      return true;
+    }
+    return navigator.onLine;
+  };
 
   // Voice recording functions
   const startRecording = async () => {
@@ -68,6 +76,43 @@ const MeetingInput = ({ onMeetingSubmitted }) => {
     audioChunksRef.current = [];
   };
 
+  const resetForm = () => {
+    setText('');
+    setLocation('');
+    clearRecording();
+    photos.forEach(photo => {
+      if (photo.preview) {
+        URL.revokeObjectURL(photo.preview);
+      }
+    });
+    setPhotos([]);
+    setParsedInputs(null);
+  };
+
+  const saveOfflineMeeting = async (note) => {
+    if (!isOfflineStorageSupported()) {
+      setMessage('Offline storage is not available in this browser.');
+      return false;
+    }
+
+    try {
+      await storeMeeting({
+        text,
+        location,
+        audioBlob,
+        photos
+      });
+
+      setMessage(note || 'Meeting saved offline. It will sync when online.');
+      resetForm();
+      return true;
+    } catch (error) {
+      console.error('[FRONTEND] Failed to store meeting offline:', error);
+      setMessage('Failed to save offline. Please reconnect and try again.');
+      return false;
+    }
+  };
+
   // Photo capture functions
   const handlePhotoCapture = async (e) => {
     const files = Array.from(e.target.files);
@@ -91,8 +136,20 @@ const MeetingInput = ({ onMeetingSubmitted }) => {
     });
     
     // Add photos to state immediately
-    setPhotos([...photos, ...newPhotos]);
+    setPhotos(prevPhotos => [...prevPhotos, ...newPhotos]);
     console.log('[FRONTEND] Total photos:', photos.length + newPhotos.length);
+
+    const newPhotoIds = newPhotos.map(photo => photo.id);
+    if (!isCurrentlyOnline()) {
+      setPhotos(prevPhotos => 
+        prevPhotos.map(photo => (
+          newPhotoIds.includes(photo.id)
+            ? { ...photo, ocrLoading: false, ocrError: 'OCR unavailable while offline' }
+            : photo
+        ))
+      );
+      return;
+    }
     
     // Process OCR for each new photo
     newPhotos.forEach(async (photo) => {
@@ -153,6 +210,12 @@ const MeetingInput = ({ onMeetingSubmitted }) => {
     setLoading(true);
     setMessage('');
 
+    if (!isCurrentlyOnline()) {
+      await saveOfflineMeeting('You are offline. Meeting saved locally and will sync when online.');
+      setLoading(false);
+      return;
+    }
+
     // Log submission details
     console.log('[FRONTEND] Submitting meeting with:');
     console.log('  - Text:', text ? `${text.length} characters` : 'None');
@@ -186,14 +249,7 @@ const MeetingInput = ({ onMeetingSubmitted }) => {
       
       // Clear form after a delay to show parsed inputs
       setTimeout(() => {
-        setText('');
-        setLocation('');
-        clearRecording();
-        photos.forEach(photo => {
-          URL.revokeObjectURL(photo.preview);
-        });
-        setPhotos([]);
-        setParsedInputs(null);
+        resetForm();
       }, 5000); // Clear after 5 seconds
       
       // Notify parent component
@@ -203,6 +259,12 @@ const MeetingInput = ({ onMeetingSubmitted }) => {
     } catch (error) {
       console.error('[FRONTEND] Error submitting meeting:', error);
       console.error('[FRONTEND] Error details:', error.response?.data || error.message);
+      if (!error.response) {
+        const saved = await saveOfflineMeeting('Connection lost. Meeting saved locally and will sync when online.');
+        if (saved) {
+          return;
+        }
+      }
       setMessage('Error submitting meeting. Please try again.');
     } finally {
       setLoading(false);
