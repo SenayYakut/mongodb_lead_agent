@@ -73,6 +73,12 @@ Frontend runs on `http://localhost:3000`
    - Data Collection → Extraction → Summarization → Categorization
 3. View results grouped by priority (P0, P1, P2)
 
+## Offline Support (Frontend)
+
+- Meeting submissions are stored locally when offline
+- Pending meetings automatically sync when back online
+- The header shows online/offline status and pending sync count
+
 ## API Endpoints
 
 - `POST /api/meetings` - Submit new meeting

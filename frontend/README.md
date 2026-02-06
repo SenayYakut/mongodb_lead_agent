@@ -24,3 +24,4 @@ Frontend will be available at `http://localhost:3000`
 - Submit meeting text for processing
 - View meetings grouped by priority (P0, P1, P2)
 - Black and white minimalist design
+- Offline mode: queue meetings locally and auto-sync when online
